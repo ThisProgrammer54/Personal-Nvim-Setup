@@ -58,4 +58,7 @@ return {
       },
     },
   },
+
+  -- godot
+  require("lspconfig").gdscript.setup({}),
 }
