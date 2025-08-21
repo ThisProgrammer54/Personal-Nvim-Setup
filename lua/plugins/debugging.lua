@@ -34,28 +34,47 @@ return {
     config = function()
       local dap = require("dap")
 
-      dap.adapters.codelldb = {
-        type = "server",
-        port = "${port}",
-        executable = {
-          command = vim.fn.stdpath("data") .. "/mason/bin/codelldb",
-          args = { "--port", "${port}" },
-        },
-      }
+      -- Adapter für codelldb
+      dap.adapters.codelldb = function(callback, config)
+        local port = 13000 -- Beliebiger, freier Port
+        local codelldb_path = vim.fn.stdpath("data") .. "/mason/bin/codelldb"
 
+        -- Server starten
+        local handle
+        local pid_or_err
+        handle, pid_or_err = vim.loop.spawn(codelldb_path, {
+          args = { "--port", tostring(port) },
+          detached = true,
+        }, function(code)
+          handle:close()
+          if code ~= 0 then
+            print("codelldb exited with code", code)
+          end
+        end)
+
+        -- Callback dem DAP-Client geben
+        callback({ type = "server", host = "127.0.0.1", port = port })
+      end
+
+      -- Konfiguration für C++
       dap.configurations.cpp = {
         {
-          name = "Launch file",
+          name = "Launch",
           type = "codelldb",
           request = "launch",
           program = function()
-            return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+            -- Frage nach Binary oder benutze Standard aus build-Ordner
+            return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/build/main", "file")
           end,
           cwd = "${workspaceFolder}",
           stopOnEntry = false,
+          args = function()
+            -- Optional: frage nach Argumenten
+            local input = vim.fn.input("Args: ")
+            return vim.split(input, " ", true)
+          end,
         },
       }
-
       dap.configurations.c = dap.configurations.cpp
       dap.configurations.rust = dap.configurations.cpp
     end,
